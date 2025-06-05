@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  bot:
+    image: my-tg-bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./bot.db:/app/bot.db
