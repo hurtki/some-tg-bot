@@ -1,13 +1,11 @@
 
-
 services:
   bot:
     build: .
     restart: always
-    volumes:
-      - ./bot.db:/app/bot.db
-      - ./bot:/app/bot   # чтобы обновления кода внутри папки bot подхватывались
     env_file:
-      - ./bot/.env      # путь к .env внутри папки bot
-    working_dir: /app/bot
+      - ./bot/.env           # путь к твоему .env внутри папки bot
+    volumes:
+      - ./bot.db:/app/bot.db # монтируем локальную SQLite-базу внутрь контейнера
+    working_dir: /app        # корневая директория, где находится папка bot
     command: python -m bot.main
