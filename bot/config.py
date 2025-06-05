@@ -1,26 +1,28 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict, Any
 import yaml
+import os
 
 class Settings(BaseSettings):
     # из .env 
     bot_token: str
     
-    # из config.yaml
+
     channel_username: str
     bot_username: str
     group_username: str 
+    admin_ids: list[int]
     
     model_config = SettingsConfigDict(
-        env_file='.env',
-        yaml_file='config.yaml',
+        env_file=os.path.join(os.path.dirname(__file__), ".env"),
         env_file_encoding='utf-8'
     )
 
 # из messages.yaml
 class Messages:
     def __init__(self, yaml_file: str = 'messages.yaml'):
-        with open(yaml_file, 'r', encoding='utf-8') as f:
+        config_path = os.path.join(os.path.dirname(__file__), yaml_file)
+        with open(config_path, 'r', encoding='utf-8') as f:
             self.data = yaml.safe_load(f)
     
     def get(self, path: str, **kwargs) -> str:
@@ -41,21 +43,17 @@ class Messages:
 
 try:  
     settings = Settings()
+    print("Конфиг настроек был получен удачно!")
 except Exception as e:
-    print(f"ошибка при читании из .env файла или config.yaml: {e}")
+    print(f"Ошибка при читании из .env файла: {e}")
+    raise
+
 try:
     messages = Messages(yaml_file="messages.yaml")
+    print("Конфиг сообщений был получен удачно!")
 except Exception as e:
-    print(f"ошибка при читании из messages.yaml файла: {e}")
-    
+    print(f"Ошибка при читании из messages.yaml файла: {e}")
+    raise
 
-print(messages.get(path="buttons.write_post"))
-print(settings.bot_token, settings.bot_username, settings.channel_username, settings.group_username)
-
-"""
-примеры использования
-
-BOT_TOKEN = settings.bot_token 
-post_approved = messages.get('user_notifications.approved', post_id=123)
-
-"""
+# Экспортируем объекты для использования в других модулях
+__all__ = ['settings', 'messages']
