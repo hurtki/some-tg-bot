@@ -8,6 +8,8 @@ import requests
 from .config import settings, messages
 from .database import Database
 
+print("🚀 БОТ СТАРТОВАЛ! Проверка вывода в логи.")
+
 # Инициализация
 bot = telebot.TeleBot(settings.bot_token)
 db = Database()
