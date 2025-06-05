@@ -88,13 +88,20 @@ def start_handler(message: types.Message):
     
     # Затем проверяем подписку
     if not check_subscription(user_id):
-        bot.send_message(message.chat.id, messages.get('subscription.check_required', settings.channel_username),
-                        reply_markup=get_subscription_keyboard())
+        bot.send_message(
+        message.chat.id,
+        messages.get('subscription.check_required', channel_username=settings.channel_username),
+        reply_markup=get_subscription_keyboard(),
+        parse_mode="HTML",
+        )
         return
     
     # Отправляем главное меню
+    
     bot.send_message(message.chat.id, messages.get('welcome.greeting'),
-                    reply_markup=get_main_keyboard())
+                reply_markup=get_main_keyboard())
+
+
 
 @bot.message_handler(commands=['admin'])
 def admin_handler(message: types.Message):
