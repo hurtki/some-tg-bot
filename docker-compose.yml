@@ -1,10 +1,13 @@
-version: '3.8'
+
 
 services:
   bot:
-    image: my-tg-bot
+    build: .
     restart: always
-    env_file:
-      - .env
     volumes:
       - ./bot.db:/app/bot.db
+      - ./bot:/app/bot   # чтобы обновления кода внутри папки bot подхватывались
+    env_file:
+      - ./bot/.env      # путь к .env внутри папки bot
+    working_dir: /app/bot
+    command: python -m bot.main
