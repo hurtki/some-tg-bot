@@ -26,8 +26,7 @@ def check_subscription(user_id: int) -> bool:
 # Клавиатуры
 def get_subscription_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton(messages.get('buttons.subscribe')))
-    markup.add(types.KeyboardButton(messages.get('buttons.check_subscription')))
+    markup.add(types.KeyboardButton(messages.get('buttons.check_subscription', channel_username=settings.channel_username)))
     return markup
 
 def get_main_keyboard():
@@ -87,7 +86,7 @@ def start_handler(message: types.Message):
     
     # Затем проверяем подписку
     if not check_subscription(user_id):
-        bot.send_message(message.chat.id, messages.get('subscription.check_required'),
+        bot.send_message(message.chat.id, messages.get('subscription.check_required', settings.channel_username),
                         reply_markup=get_subscription_keyboard())
         return
     
