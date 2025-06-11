@@ -1,14 +1,21 @@
-import telebot
 from telebot import types
-import threading
-import time
 from typing import Dict, Optional
-import requests
+import sys, logging, requests, time, threading, telebot
+
+# конфиг логгера 
+logging.basicConfig(
+    level=logging.INFO,  
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,  # to stdout 
+)
+logger = logging.getLogger(__name__)
+
+logger.info("bot started succsecfully!")
 
 from .config import settings, messages
 from .database import Database
 
-print("🚀 БОТ СТАРТОВАЛ! Проверка вывода в логи.")
+
 
 # Инициализация
 bot = telebot.TeleBot(settings.bot_token)
@@ -71,7 +78,7 @@ def get_moderation_keyboard(post_id: int):
     return markup
 
 
-# Обработчики команд
+# ===COMMANDS HANDLERS===
 @bot.message_handler(commands=['start'])
 def start_handler(message: types.Message):
     user_id = message.from_user.id
@@ -80,6 +87,8 @@ def start_handler(message: types.Message):
     
     # Сначала добавляем/обновляем пользователя
     db.add_user(user_id, username, first_name)
+    
+    logger.info(f"New user added: {username}")
     
     # ЗАТЕМ проверяем бан
     if db.is_user_banned(user_id):
@@ -138,6 +147,8 @@ def ban_handler(message: types.Message):
             messages.get('moderation.user_banned_admin', user=target_id)
         )
         
+        logger.info(f"User with id: {target_id} was banned")
+        
         # Уведомляем пользователя
         try:
             bot.send_message(
@@ -170,6 +181,8 @@ def unban_handler(message: types.Message):
             message.chat.id, 
             messages.get('moderation.user_unbanned_admin', user=target_id)
         )
+        
+        logger.info(f"User with id: {target_id} was UNbanned")
         
         # Уведомляем пользователя
         try:
@@ -257,7 +270,7 @@ def check_subscription_handler(message: types.Message):
             reply_markup=get_subscription_keyboard()
         )
 
-# Вместо @bot.callback_query_handler(func=lambda call: call.data == "support")
+
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.support'))
 def support_handler(message: types.Message):
     bot.send_message(
@@ -266,7 +279,6 @@ def support_handler(message: types.Message):
         reply_markup=get_main_keyboard()
     )
 
-# Вместо @bot.callback_query_handler(func=lambda call: call.data == "create_post")
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.write_post'))
 def create_post_handler(message: types.Message):
     user_id = message.from_user.id
@@ -290,7 +302,7 @@ def create_post_handler(message: types.Message):
         reply_markup=types.ReplyKeyboardRemove()
     )
 
-# Вместо @bot.callback_query_handler(func=lambda call: call.data == "skip_photo")
+
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.skip_photo'))
 def skip_photo_handler(message: types.Message):
     user_id = message.from_user.id
@@ -509,7 +521,7 @@ def send_to_moderation_updated(post_id: int):
 
 
 
-# Обработчики сообщений в зависимости от состояния
+# ===STATE HANDLERS===
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id) == "waiting_for_text")
 def handle_post_text(message: types.Message):
     user_id = message.from_user.id
@@ -535,7 +547,7 @@ def handle_post_photo(message: types.Message):
         reply_markup=get_anonymity_keyboard()
     )
 
-# Вспомогательные функции
+# ===HELPERS===
 def show_post_preview(chat_id: int, user_id: int):
     data = user_data[user_id]
     username = bot.get_chat(user_id).username if not data["is_anonymous"] else None
@@ -657,7 +669,7 @@ def publish_to_channel(post: dict):
 while True:
     for i in settings.admin_ids:
         db.add_admin(i, added_by="auto_add_in_script")
-        print(i)
+        print("админ")
     try:
         bot.polling()
     except Exception as e:

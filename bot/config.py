@@ -3,6 +3,8 @@ from typing import Dict, Any
 import yaml
 import os
 
+
+
 class Settings(BaseSettings):
     # из .env 
     bot_token: str
