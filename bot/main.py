@@ -1,19 +1,14 @@
 from telebot import types
 from typing import Dict, Optional
 import sys, logging, requests, time, threading, telebot
-
-# конфиг логгера 
-logging.basicConfig(
-    level=logging.INFO,  
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    stream=sys.stdout,  # to stdout 
-)
-logger = logging.getLogger(__name__)
+# относительные импорты ы
+from .logger import logger
+from .config import settings, messages
+from .database import Database
 
 logger.info("bot started succsecfully!")
 
-from .config import settings, messages
-from .database import Database
+
 
 
 
@@ -517,7 +512,7 @@ def send_to_moderation_updated(post_id: int):
                     reply_markup=get_moderation_keyboard(post_id)
                 )
         except Exception as e:
-            print(f"Ошибка при отправке админу {admin_id}: {e}")
+            logger.error(f"Ошибка при отправке админу {admin_id}: {e}")
 
 
 
@@ -609,7 +604,7 @@ def send_to_moderation(post_id: int):
                 reply_markup=get_moderation_keyboard(post_id)
             )
     except Exception as e:
-        print(f"Ошибка при отправке на модерацию: {e}")
+        logger.error(f"Ошибка при отправке на модерацию: {e}")
 
 def edit_moderation_message(message: types.Message, post: dict, status: str, admin_username: str):
     username = post["username"] if post["username"] else str(post["user_id"])
@@ -664,13 +659,15 @@ def publish_to_channel(post: dict):
         else:
             bot.send_message(channel_chat_id, publish_text, parse_mode="HTML")
     except Exception as e:
-        print(f"Ошибка при публикации в канал: {e}")
+        logger.error(f"Ошибка при публикации в канал: {e}")
 
-while True:
-    for i in settings.admin_ids:
-        db.add_admin(i, added_by="auto_add_in_script")
-        print("админ")
-    try:
-        bot.polling()
-    except Exception as e:
-        print(e)
+
+for i in settings.admin_ids:
+    db.add_admin(i, added_by="auto_add_in_script")
+    logger.info(f"Admin with ID: {i} was registered(SCRIPT)")
+try:
+    bot.polling()
+except KeyboardInterrupt:
+    pass
+except Exception as e:
+    logger.error(f"ERROR: {e}")

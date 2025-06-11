@@ -2,7 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict, Any
 import yaml
 import os
-
+# относительные импорты 
+from .logger import logger
 
 
 class Settings(BaseSettings):
@@ -45,16 +46,17 @@ class Messages:
 
 try:  
     settings = Settings()
-    print("Конфиг настроек был получен удачно!")
+    logger.info("Конфиг настроек был получен удачно!")
+    
 except Exception as e:
-    print(f"Ошибка при читании из .env файла: {e}")
+    logger.error(f"Ошибка при читании из .env файла: {e}")
     raise
 
 try:
     messages = Messages(yaml_file="messages.yaml")
-    print("Конфиг сообщений был получен удачно!")
+    logger.info("Конфиг сообщений был получен удачно!")
 except Exception as e:
-    print(f"Ошибка при читании из messages.yaml файла: {e}")
+    logger.error(f"Ошибка при читании из messages.yaml файла: {e}")
     raise
 
 # Экспортируем объекты для использования в других модулях
