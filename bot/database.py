@@ -61,6 +61,9 @@ class Database:
     # === РАБОТА С ПОЛЬЗОВАТЕЛЯМИ ===
     
     def add_user(self, telegram_id: int, username: str = None, first_name: str = None):
+        """Функция проверяет наличие пользователя и либо его обновляет либо создает
+        Возвращает True если новый, False если просто был обновлен
+        """
         with sqlite3.connect(self.db_path) as conn:
             # Сначала проверяем, существует ли пользователь
             exists = conn.execute(
@@ -75,6 +78,7 @@ class Database:
                     SET username = ?, first_name = ?, last_activity = ?
                     WHERE telegram_id = ?
                 ''', (username, first_name, datetime.datetime.now(), telegram_id))
+                return False
             else:
                 # Создаем нового пользователя
                 conn.execute('''
@@ -82,6 +86,7 @@ class Database:
                     (telegram_id, username, first_name, last_activity) 
                     VALUES (?, ?, ?, ?)
                 ''', (telegram_id, username, first_name, datetime.datetime.now()))
+                return True
         
     def get_user(self, telegram_id: int) -> Optional[dict]:
         """Получение пользователя"""

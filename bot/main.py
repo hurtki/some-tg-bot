@@ -29,8 +29,9 @@ def check_subscription(user_id: int) -> bool:
         return False
 # Клавиатуры
 def get_subscription_keyboard():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton(messages.get('buttons.check_subscription', channel_username=settings.channel_username)))
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(types.InlineKeyboardButton(messages.get('buttons.check_subscription'), callback_data="check_subscription"))
+    markup.add(types.InlineKeyboardButton(messages.get('buttons.subscribe'), url=f"https://t.me/{settings.channel_username}"))
     return markup
 
 def get_main_keyboard():
@@ -58,6 +59,11 @@ def get_confirmation_keyboard():
     )
     return markup
 
+def get_back_keyboard():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    markup.add(types.KeyboardButton(messages.get('buttons.back')))
+    return markup
+
 def get_moderation_keyboard(post_id: int):
     markup = types.InlineKeyboardMarkup()
     markup.row(
@@ -81,9 +87,8 @@ def start_handler(message: types.Message):
     first_name = message.from_user.first_name
     
     # Сначала добавляем/обновляем пользователя
-    db.add_user(user_id, username, first_name)
-    
-    logger.info(f"New user added: {username}")
+    if db.add_user(user_id, username, first_name):
+        logger.info(f"New user added: @{username}")
     
     # ЗАТЕМ проверяем бан
     if db.is_user_banned(user_id):
@@ -248,22 +253,7 @@ def send_broadcast(admin_chat_id: int, text: str):
     )
 
 
-@bot.message_handler(func=lambda message: message.text == messages.get('buttons.check_subscription'))
-def check_subscription_handler(message: types.Message):
-    user_id = message.from_user.id
-    
-    if check_subscription(user_id):
-        bot.send_message(
-            message.chat.id,
-            messages.get('welcome.greeting'),
-            reply_markup=get_main_keyboard()
-        )
-    else:
-        bot.send_message(
-            message.chat.id,
-            messages.get('subscription.not_subscribed'),
-            reply_markup=get_subscription_keyboard()
-        )
+
 
 
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.support'))
@@ -294,9 +284,13 @@ def create_post_handler(message: types.Message):
     bot.send_message(
         message.chat.id,
         messages.get('post_creation.write_description'),
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=get_back_keyboard()
     )
 
+@bot.message_handler(func=lambda message: message.text == messages.get('buttons.back'))
+def back(message: types.Message):
+    start_handler(message=message)
+    return
 
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.skip_photo'))
 def skip_photo_handler(message: types.Message):
@@ -381,8 +375,9 @@ def restart_post_handler(message: types.Message):
     bot.send_message(
         message.chat.id,
         messages.get('post_creation.write_description'),
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=get_back_keyboard(),
     )
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_'))
 def approve_handler(call):
     if not db.is_admin(call.from_user.id):
@@ -429,6 +424,44 @@ def approve_handler(call):
     
     # Отвечаем на callback
     bot.answer_callback_query(call.id, "Пост одобрен")
+
+@bot.message_handler(func=lambda message: message.text == messages.get('buttons.check_subscription'))
+def check_subscription_handler(message: types.Message):
+    user_id = message.from_user.id
+    
+    if check_subscription(user_id):
+        bot.send_message(
+            message.chat.id,
+            messages.get('welcome.greeting'),
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        bot.send_message(
+            message.chat.id,
+            messages.get('subscription.not_subscribed'),
+            reply_markup=get_subscription_keyboard()
+        )    
+    
+@bot.callback_query_handler(func=lambda call: call.data.startswith('check_'))
+def check_subscription_handler(call):
+    user_id = call.from_user.id
+    chat_id = call.message.chat.id
+    message = call.message
+    
+    if check_subscription(user_id):
+        bot.delete_message(chat_id, message.message_id)
+        bot.send_message(
+            chat_id,
+            messages.get('welcome.greeting'),
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        bot.delete_message(chat_id, message.message_id)
+        bot.send_message(
+            chat_id,
+            messages.get('subscription.not_subscribed'),
+            reply_markup=get_subscription_keyboard()
+        )    
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('reject_'))
 def reject_handler(call):
@@ -526,7 +559,7 @@ def handle_post_text(message: types.Message):
     bot.send_message(
         message.chat.id,
         messages.get('post_creation.add_photo'),
-        reply_markup=get_photo_skip_keyboard()
+        reply_markup=get_photo_skip_keyboard(),
     )
 
 @bot.message_handler(content_types=['photo'], func=lambda message: user_states.get(message.from_user.id) == "waiting_for_photo")
