@@ -99,7 +99,7 @@ def start_handler(message: types.Message):
     if not check_subscription(user_id):
         bot.send_message(
         message.chat.id,
-        messages.get('subscription.check_required', channel_username=settings.channel_username),
+        messages.get('subscription.check_required'),
         reply_markup=get_subscription_keyboard(),
         parse_mode="HTML",
         )
