@@ -91,7 +91,7 @@ def start_handler(message: types.Message):
         logger.info(f"New user added: @{username}")
     
     # ЗАТЕМ проверяем бан
-    if db.is_user_banned(user_id):
+    if db.is_user_banned(user_id): 
         bot.send_message(user_id, messages.get('moderation.user_banned_notification'))
         return
     
@@ -239,7 +239,7 @@ def send_broadcast(admin_chat_id: int, text: str):
     
     for user_id in users:
         try:
-            bot.send_message(user_id, text, parse_mode="HTML")
+            bot.send_message(user_id, text, parse_mode="HTML", disable_web_page_preview=True)
             success_count += 1
             time.sleep(0.1)  # Задержка для избежания лимитов
         except:
@@ -690,7 +690,7 @@ def publish_to_channel(post: dict):
         if post["has_photo"]:
             bot.send_photo(channel_chat_id, post["photo_file_id"], caption=publish_text, parse_mode="HTML")
         else:
-            bot.send_message(channel_chat_id, publish_text, parse_mode="HTML")
+            bot.send_message(channel_chat_id, publish_text, parse_mode="HTML", disable_web_page_preview=True)
     except Exception as e:
         logger.error(f"Ошибка при публикации в канал: {e}")
 
