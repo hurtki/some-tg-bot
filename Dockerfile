@@ -1,14 +1,14 @@
 FROM python:3.11-slim
 
-# Устанавливаем рабочую директорию
+# SETTING WORK DIRECTORY
 WORKDIR /app
 
-# Копируем зависимости и устанавливаем
+# DEPENDENSIES
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем все, кроме venv и __pycache__
+
 COPY . .
 
-# Указываем команду запуска
+# START COMMAND
 CMD ["python", "-m", "bot.main"]

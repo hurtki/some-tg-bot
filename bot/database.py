@@ -10,7 +10,7 @@ class Database:
     def init_database(self):
         """Создание таблиц при первом запуске"""
         with sqlite3.connect(self.db_path) as conn:
-            # Таблица пользователей
+            # users table 
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +23,7 @@ class Database:
                 )
             ''')
             
-            # Таблица постов
+            # posts table 
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS posts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +42,7 @@ class Database:
                 )
             ''')
             
-            # Таблица админов
+            # admin table 
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS admins (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,26 +53,26 @@ class Database:
                 )
             ''')
             
-            # Индексы для быстрого поиска
+            # indexes 
             conn.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
             conn.execute('CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status)')
             conn.execute('CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id)')
     
-    # === РАБОТА С ПОЛЬЗОВАТЕЛЯМИ ===
+    # === WORK WOTH USERS ===
     
     def add_user(self, telegram_id: int, username: str = None, first_name: str = None):
         """Функция проверяет наличие пользователя и либо его обновляет либо создает
         Возвращает True если новый, False если просто был обновлен
         """
         with sqlite3.connect(self.db_path) as conn:
-            # Сначала проверяем, существует ли пользователь
+            # checking if user exists 
             exists = conn.execute(
                 'SELECT 1 FROM users WHERE telegram_id = ?', 
                 (telegram_id,)
             ).fetchone()
             
             if exists:
-                # Обновляем только username, first_name и last_activity
+                # if exists, updating only first_name и last_activity
                 conn.execute('''
                     UPDATE users 
                     SET username = ?, first_name = ?, last_activity = ?
@@ -80,7 +80,7 @@ class Database:
                 ''', (username, first_name, datetime.datetime.now(), telegram_id))
                 return False
             else:
-                # Создаем нового пользователя
+                # if not exists just creating a new one
                 conn.execute('''
                     INSERT INTO users 
                     (telegram_id, username, first_name, last_activity) 
@@ -89,7 +89,7 @@ class Database:
                 return True
         
     def get_user(self, telegram_id: int) -> Optional[dict]:
-        """Получение пользователя"""
+        """Getting user"""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
@@ -100,7 +100,7 @@ class Database:
             return dict(row) if row else None
     
     def ban_user(self, telegram_id: int):
-        """Бан пользователя"""
+        """Ban user"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 'UPDATE users SET is_banned = TRUE WHERE telegram_id = ?',
@@ -108,7 +108,7 @@ class Database:
             )
     
     def unban_user(self, telegram_id: int):
-        """Разбан пользователя"""
+        """Unban user"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 'UPDATE users SET is_banned = FALSE WHERE telegram_id = ?',
@@ -116,7 +116,7 @@ class Database:
             )
     
     def is_user_banned(self, telegram_id: int) -> bool:
-        """Проверка на бан"""
+        """Checking if user banned"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 'SELECT is_banned FROM users WHERE telegram_id = ?',
@@ -126,18 +126,18 @@ class Database:
             return bool(result[0]) if result else False
     
     def get_all_users(self) -> List[int]:
-        """Получение всех пользователей для рассылки"""
+        """Getting all users"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 'SELECT telegram_id FROM users WHERE is_banned = FALSE'
             )
             return [row[0] for row in cursor.fetchall()]
     
-    # === РАБОТА С ПОСТАМИ ===
+    # === WORKING WITH POSTS ===
     
     def create_post(self, user_id: int, text_content: str, has_photo: bool = False, 
                    photo_file_id: str = None, is_anonymous: bool = False) -> int:
-        """Создание нового поста"""
+        """create new post"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute('''
                 INSERT INTO posts 
@@ -147,7 +147,7 @@ class Database:
             return cursor.lastrowid
     
     def get_post(self, post_id: int) -> Optional[dict]:
-        """Получение поста по ID"""
+        """get post data"""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute('''
@@ -160,7 +160,7 @@ class Database:
             return dict(row) if row else None
     
     def approve_post(self, post_id: int, admin_id: int):
-        """Одобрение поста"""
+        """aprove post"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute('''
                 UPDATE posts 
@@ -170,7 +170,7 @@ class Database:
             ''', (admin_id, datetime.datetime.now(), datetime.datetime.now(), post_id))
     
     def reject_post(self, post_id: int, admin_id: int):
-        """Отклонение поста"""
+        """reject post"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute('''
                 UPDATE posts 
@@ -179,7 +179,7 @@ class Database:
             ''', (admin_id, datetime.datetime.now(), post_id))
     
     def get_pending_posts(self) -> List[dict]:
-        """Получение постов на модерации"""
+        """get pending posts"""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute('''
@@ -191,7 +191,7 @@ class Database:
             ''')
             return [dict(row) for row in cursor.fetchall()]
     
-    # === РАБОТА С АДМИНАМИ ===
+    # === WORK WITH ADMINS ===
     
     def add_admin(self, telegram_id: int, username: str = None, added_by: int = None):
         """Добавление админа"""
@@ -218,23 +218,23 @@ class Database:
                 (telegram_id,)
             )
     
-    # === СТАТИСТИКА ===
+    # === STATISTICS ===
     
     def get_stats(self) -> dict:
         """Получение статистики"""
         with sqlite3.connect(self.db_path) as conn:
-            # Общее количество пользователей
+            # all users count 
             users_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
             
-            # Общее количество постов
+            # all posts count
             total_posts = conn.execute('SELECT COUNT(*) FROM posts').fetchone()[0]
             
-            # Одобренные посты
+            # all aproved posts count
             approved_posts = conn.execute(
                 'SELECT COUNT(*) FROM posts WHERE status = "approved"'
             ).fetchone()[0]
             
-            # Посты на модерации
+            # pending posts
             pending_posts = conn.execute(
                 'SELECT COUNT(*) FROM posts WHERE status = "pending"'
             ).fetchone()[0]
@@ -247,7 +247,7 @@ class Database:
             }
     
     def get_user_posts_count(self, telegram_id: int) -> int:
-        """Количество постов пользователя"""
+        """User posts count"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 'SELECT COUNT(*) FROM posts WHERE user_id = ?',

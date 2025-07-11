@@ -4,8 +4,8 @@ services:
     build: .
     restart: always
     env_file:
-      - ./bot/.env           # путь к твоему .env внутри папки bot
+      - ./bot/.env           # path to .env
     volumes:
-      - ./bot.db:/app/bot.db # монтируем локальную SQLite-базу внутрь контейнера
-    working_dir: /app        # корневая директория, где находится папка bot
+      - ./bot.db:/app/bot.db # local db as volume
+    # working_dir: /app        # working directory / ALREADY SET IN DOCKERFILE
     command: python -m bot.main
