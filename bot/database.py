@@ -1,6 +1,7 @@
 import sqlite3
 import datetime
 from typing import Optional, List, Tuple
+from .logger import logger
 
 
 class Database:
@@ -271,9 +272,9 @@ def add_column_if_not_exists(conn, table, column, col_def):
     columns = [row[1] for row in cursor.fetchall()]
     if column not in columns:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
-        print(f"✅ Column {column} added to {table}")
+        logger.info(f"Column {column} added to {table}")
     else:
-        print(f"✔️ Column {column} already exists in {table}")
+        logger.info(f"✔️ Column {column} already exists in {table}")
 
 
 db = Database()

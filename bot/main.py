@@ -292,10 +292,11 @@ def back(message: types.Message):
     start_handler(message=message)
     return
 
+
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.skip_media'))
 def skip_photo_handler(message: types.Message):
     user_id = message.from_user.id
-    if user_states.get(user_id) != "waiting_for_photo":
+    if user_states.get(user_id) != "waiting_for_media":
         return
     
     user_data[user_id]["has_photo"] = False
@@ -342,7 +343,7 @@ def confirm_post_handler(message: types.Message):
         return
     
     # getting data about media 
-    has_photo, has_video = data['has_photo'], data['has_video']
+    has_photo, has_video = data.get('has_photo', False), data.get('has_video', False)
     
     # Создаем пост в базе
     post_id = db.create_post(
@@ -557,9 +558,21 @@ def send_to_moderation_updated(post_id: int):
 
 
 # ===STATE HANDLERS===
-@bot.message_handler(func=lambda message: user_states.get(message.from_user.id) == "waiting_for_text")
+@bot.message_handler(content_types=['text', 'photo', 'video', 'document', 'audio', 'voice', 'sticker'], 
+                    func=lambda message: user_states.get(message.from_user.id) == "waiting_for_text")
 def handle_post_text(message: types.Message):
     user_id = message.from_user.id
+
+    # if not a text message telling user that he needs to send text 
+    if message.content_type != "text":
+        bot.send_message(
+        message.chat.id,
+        messages.get('post_creation.no_text_warning'),
+        )
+        user_states[user_id] = "waiting_for_text"
+        return
+        
+        
     user_data[user_id]["text"] = message.text
     user_states[user_id] = "waiting_for_media"
     
@@ -570,10 +583,9 @@ def handle_post_text(message: types.Message):
     )
 
 @bot.message_handler(content_types=['photo', 'video'], func=lambda message: user_states.get(message.from_user.id) == "waiting_for_media")
-def handle_post_photo(message: types.Message):
+def handle_post_media(message: types.Message):
     user_id = message.from_user.id
     
-    logger.info(f"GOT MEDIA TYPE {message.content_type}")
     
     # handling two types of media 
     if message.content_type == "photo":
@@ -604,7 +616,7 @@ def show_post_preview(chat_id: int, user_id: int):
     data = user_data[user_id]
     username = bot.get_chat(user_id).username if not data["is_anonymous"] else None
     
-    media_status = messages.get('status.media_yes') if data['has_photo'] else messages.get('status.media_no')
+    media_status = messages.get('status.media_yes') if data.get('has_photo', False) or data.get("has_video", False) else messages.get('status.media_no')
     contact_info = messages.get('status.contact_anonymous') if data['is_anonymous'] else f'@{username}'
     
     preview_text = messages.get('post_creation.confirmation',
@@ -619,7 +631,7 @@ def show_post_preview(chat_id: int, user_id: int):
             caption=preview_text,
             reply_markup=get_confirmation_keyboard()
         )
-    elif data["has_video"]:
+    elif data.get("has_video", False):
         bot.send_video(
             chat_id,
             data["video_file_id"],
@@ -739,7 +751,7 @@ for i in settings.admin_ids:
     db.add_admin(i, added_by="auto_add_in_script")
     logger.info(f"Admin with ID: {i} was registered(SCRIPT)")
 try:
-    bot.polling()
+    bot.polling(none_stop=True)
 except KeyboardInterrupt:
     pass
 except Exception as e:
