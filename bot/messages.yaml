@@ -21,7 +21,7 @@ buttons:
   support: "🧑‍💻Поддержка"
   subscribe: "➕Подписаться"
   check_subscription: "♻️Проверить"
-  skip_photo: "➡️Пропустить"
+  skip_media: "➡️Пропустить"
   anonymous: "👀Анонимным"
   leave_contact: "💬Оставить контакт"
   yes_send: "👍Да, отправить"
@@ -44,7 +44,7 @@ post_creation:
     💌Например: Описание человека, место, время и т.д
   
   add_photo: |
-    📸Отлично, теперь добавьте фото
+    📸Отлично, теперь добавьте фото/видео
     ❌Если фото нет или оно не требуется просто нажмите кнопку: ➡️Пропустить
   
   choose_anonymity: |
@@ -61,7 +61,7 @@ post_creation:
     ✅Ваша публикация готова!
     
     ✍️Текст поста: {post_text}
-    📸Фото: {photo_status}
+    📸Медиа: {media_status}
     💬Контакт: {contact_info}
     
     ❓Все верно?
@@ -76,7 +76,7 @@ admin:
     🪪Номер публикации: {post_id}
     
     ✍️Текст поста: {post_text}
-    📸Фото: {photo_status}
+    📸Медиа: {media_status}
     💬Контакт: {contact_info}
   
   application_approved: |
@@ -85,7 +85,7 @@ admin:
     🪪Номер публикации: {post_id}
     
     ✍️Текст поста: {post_text}
-    📸Фото: {photo_status}
+    📸Медиа: {media_status}
     💬Контакт: {contact_info}
     ✅Заявка одобрена! (@{admin_username})
   
@@ -95,7 +95,7 @@ admin:
     🪪Номер публикации: {post_id}
     
     ✍️Текст поста: {post_text}
-    📸Фото: {photo_status}
+    📸Медиа: {media_status}
     💬Контакт: {contact_info}
     ❌Заявка отказана! (@{admin_username})
 
@@ -161,6 +161,6 @@ channel_post:
     🏆<a href="https://t.me/VoidShop64">Лучший магазин одежды</a>
 # Статусы
 status:
-  photo_yes: "Есть"
-  photo_no: "Нет"
+  media_yes: "Есть"
+  media_no: "Нет"
   contact_anonymous: "Анонимно"

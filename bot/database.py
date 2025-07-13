@@ -2,6 +2,7 @@ import sqlite3
 import datetime
 from typing import Optional, List, Tuple
 
+
 class Database:
     def __init__(self, db_path: str = 'bot.db'):
         self.db_path = db_path
@@ -42,6 +43,14 @@ class Database:
                 )
             ''')
             
+            
+            # MIGRATION №1 TO POSTS TABLE
+            # ADD has_video FIELD (BOOLEAN, DEFAULT: FALSE)
+            # ADD video_file_id FIELD (TEXT, DEFAULT: NULL)
+
+            add_column_if_not_exists(conn, "posts", "has_video", "BOOLEAN DEFAULT FALSE")
+            add_column_if_not_exists(conn, "posts", "video_file_id", "TEXT")
+
             # admin table 
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS admins (
@@ -58,7 +67,7 @@ class Database:
             conn.execute('CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status)')
             conn.execute('CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id)')
     
-    # === WORK WOTH USERS ===
+    # === WORK WITH USERS ===
     
     def add_user(self, telegram_id: int, username: str = None, first_name: str = None):
         """Функция проверяет наличие пользователя и либо его обновляет либо создает
@@ -135,15 +144,15 @@ class Database:
     
     # === WORKING WITH POSTS ===
     
-    def create_post(self, user_id: int, text_content: str, has_photo: bool = False, 
-                   photo_file_id: str = None, is_anonymous: bool = False) -> int:
+    def create_post(self, user_id: int, text_content: str, has_photo: bool = False, has_video: bool = False, 
+                   photo_file_id: str = None, video_file_id: str = None, is_anonymous: bool = False) -> int:
         """create new post"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute('''
                 INSERT INTO posts 
-                (user_id, text_content, has_photo, photo_file_id, is_anonymous) 
-                VALUES (?, ?, ?, ?, ?)
-            ''', (user_id, text_content, has_photo, photo_file_id, is_anonymous))
+                (user_id, text_content, has_photo, has_video, photo_file_id, video_file_id, is_anonymous) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, text_content, has_photo, has_video, photo_file_id, video_file_id, is_anonymous))
             return cursor.lastrowid
     
     def get_post(self, post_id: int) -> Optional[dict]:
@@ -254,5 +263,17 @@ class Database:
                 (telegram_id,)
             )
             return cursor.fetchone()[0]
+
+# ======= UTILS =======
+
+def add_column_if_not_exists(conn, table, column, col_def):
+    cursor = conn.execute(f"PRAGMA table_info({table})")
+    columns = [row[1] for row in cursor.fetchall()]
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
+        print(f"✅ Column {column} added to {table}")
+    else:
+        print(f"✔️ Column {column} already exists in {table}")
+
 
 db = Database()

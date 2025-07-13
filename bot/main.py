@@ -42,7 +42,7 @@ def get_main_keyboard():
 
 def get_photo_skip_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton(messages.get('buttons.skip_photo')))
+    markup.add(types.KeyboardButton(messages.get('buttons.skip_media')))
     return markup
 
 def get_anonymity_keyboard():
@@ -292,7 +292,7 @@ def back(message: types.Message):
     start_handler(message=message)
     return
 
-@bot.message_handler(func=lambda message: message.text == messages.get('buttons.skip_photo'))
+@bot.message_handler(func=lambda message: message.text == messages.get('buttons.skip_media'))
 def skip_photo_handler(message: types.Message):
     user_id = message.from_user.id
     if user_states.get(user_id) != "waiting_for_photo":
@@ -341,12 +341,17 @@ def confirm_post_handler(message: types.Message):
     if not data:
         return
     
+    # getting data about media 
+    has_photo, has_video = data['has_photo'], data['has_video']
+    
     # Создаем пост в базе
     post_id = db.create_post(
         user_id=user_id,
         text_content=data["text"],
-        has_photo=data["has_photo"],
+        has_photo=has_photo,
+        has_video=has_video,
         photo_file_id=data.get("photo_file_id"),
+        video_file_id=data.get("video_file_id"),
         is_anonymous=data["is_anonymous"]
     )
     
@@ -377,6 +382,44 @@ def restart_post_handler(message: types.Message):
         messages.get('post_creation.write_description'),
         reply_markup=get_back_keyboard(),
     )
+
+@bot.message_handler(func=lambda message: message.text == messages.get('buttons.check_subscription'))
+def check_subscription_handler(message: types.Message):
+    user_id = message.from_user.id
+    
+    if check_subscription(user_id):
+        bot.send_message(
+            message.chat.id,
+            messages.get('welcome.greeting'),
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        bot.send_message(
+            message.chat.id,
+            messages.get('subscription.not_subscribed'),
+            reply_markup=get_subscription_keyboard()
+        )    
+    
+@bot.callback_query_handler(func=lambda call: call.data.startswith('check_'))
+def check_subscription_handler(call):
+    user_id = call.from_user.id
+    chat_id = call.message.chat.id
+    message = call.message
+    
+    if check_subscription(user_id):
+        bot.delete_message(chat_id, message.message_id)
+        bot.send_message(
+            chat_id,
+            messages.get('welcome.greeting'),
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        bot.delete_message(chat_id, message.message_id)
+        bot.send_message(
+            chat_id,
+            messages.get('subscription.not_subscribed'),
+            reply_markup=get_subscription_keyboard()
+        )    
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_'))
 def approve_handler(call):
@@ -425,43 +468,7 @@ def approve_handler(call):
     # Отвечаем на callback
     bot.answer_callback_query(call.id, "Пост одобрен")
 
-@bot.message_handler(func=lambda message: message.text == messages.get('buttons.check_subscription'))
-def check_subscription_handler(message: types.Message):
-    user_id = message.from_user.id
-    
-    if check_subscription(user_id):
-        bot.send_message(
-            message.chat.id,
-            messages.get('welcome.greeting'),
-            reply_markup=get_main_keyboard()
-        )
-    else:
-        bot.send_message(
-            message.chat.id,
-            messages.get('subscription.not_subscribed'),
-            reply_markup=get_subscription_keyboard()
-        )    
-    
-@bot.callback_query_handler(func=lambda call: call.data.startswith('check_'))
-def check_subscription_handler(call):
-    user_id = call.from_user.id
-    chat_id = call.message.chat.id
-    message = call.message
-    
-    if check_subscription(user_id):
-        bot.delete_message(chat_id, message.message_id)
-        bot.send_message(
-            chat_id,
-            messages.get('welcome.greeting'),
-            reply_markup=get_main_keyboard()
-        )
-    else:
-        bot.delete_message(chat_id, message.message_id)
-        bot.send_message(
-            chat_id,
-            messages.get('subscription.not_subscribed'),
-            reply_markup=get_subscription_keyboard()
-        )    
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('reject_'))
 def reject_handler(call):
@@ -513,14 +520,14 @@ def send_to_moderation_updated(post_id: int):
         return
     
     username = post["username"] if post["username"] else str(post["user_id"])
-    photo_status = messages.get('status.photo_yes') if post['has_photo'] else messages.get('status.photo_no')
+    media_status = messages.get('status.media_yes') if post['has_photo'] else messages.get('status.media_no')
     contact_info = messages.get('status.contact_anonymous') if post["is_anonymous"] else f"@{username}"
     
     moderation_text = messages.get('admin.new_application',
                                   author=f"@{username} ({post['user_id']})",
                                   post_id=post_id,
                                   post_text=post['text_content'],
-                                  photo_status=photo_status,
+                                  media_status=media_status,
                                   contact_info=contact_info)
     
     # Получаем всех админов и отправляем каждому индивидуально
@@ -554,7 +561,7 @@ def send_to_moderation_updated(post_id: int):
 def handle_post_text(message: types.Message):
     user_id = message.from_user.id
     user_data[user_id]["text"] = message.text
-    user_states[user_id] = "waiting_for_photo"
+    user_states[user_id] = "waiting_for_media"
     
     bot.send_message(
         message.chat.id,
@@ -562,12 +569,29 @@ def handle_post_text(message: types.Message):
         reply_markup=get_photo_skip_keyboard(),
     )
 
-@bot.message_handler(content_types=['photo'], func=lambda message: user_states.get(message.from_user.id) == "waiting_for_photo")
+@bot.message_handler(content_types=['photo', 'video'], func=lambda message: user_states.get(message.from_user.id) == "waiting_for_media")
 def handle_post_photo(message: types.Message):
     user_id = message.from_user.id
-    user_data[user_id]["has_photo"] = True
-    user_data[user_id]["photo_file_id"] = message.photo[-1].file_id
+    
+    logger.info(f"GOT MEDIA TYPE {message.content_type}")
+    
+    # handling two types of media 
+    if message.content_type == "photo":
+        user_data[user_id]["has_photo"] = True
+        user_data[user_id]["photo_file_id"] = message.photo[-1].file_id  
+        
+        # reset the other media type
+        user_data[user_id]["has_video"] = False
+    elif message.content_type == "video":
+        user_data[user_id]["has_video"] = True
+        user_data[user_id]["video_file_id"] = message.video.file_id
+        
+        # reset the other media type
+        user_data[user_id]["has_photo"] = False
+    
+    
     user_states[user_id] = "waiting_for_anonymity"
+    
     
     bot.send_message(
         message.chat.id,
@@ -580,18 +604,25 @@ def show_post_preview(chat_id: int, user_id: int):
     data = user_data[user_id]
     username = bot.get_chat(user_id).username if not data["is_anonymous"] else None
     
-    photo_status = messages.get('status.photo_yes') if data['has_photo'] else messages.get('status.photo_no')
+    media_status = messages.get('status.media_yes') if data['has_photo'] else messages.get('status.media_no')
     contact_info = messages.get('status.contact_anonymous') if data['is_anonymous'] else f'@{username}'
     
     preview_text = messages.get('post_creation.confirmation',
                                post_text=data['text'],
-                               photo_status=photo_status,
+                               media_status=media_status,
                                contact_info=contact_info)
     
-    if data["has_photo"]:
+    if data.get('has_photo', False):
         bot.send_photo(
             chat_id,
             data["photo_file_id"],
+            caption=preview_text,
+            reply_markup=get_confirmation_keyboard()
+        )
+    elif data["has_video"]:
+        bot.send_video(
+            chat_id,
+            data["video_file_id"],
             caption=preview_text,
             reply_markup=get_confirmation_keyboard()
         )
@@ -609,14 +640,14 @@ def send_to_moderation(post_id: int):
         return
     
     username = post["username"] if post["username"] else str(post["user_id"])
-    photo_status = messages.get('status.photo_yes') if post['has_photo'] else messages.get('status.photo_no')
+    media_status = messages.get('status.media_yes') if post['has_photo'] or post['has_video'] else messages.get('status.media_no')
     contact_info = messages.get('status.contact_anonymous') if post["is_anonymous"] else f"@{username}"
     
     moderation_text = messages.get('admin.new_application',
                                   author=f"@{username} ({post['user_id']})",
                                   post_id=post_id,
                                   post_text=post['text_content'],
-                                  photo_status=photo_status,
+                                  media_status=media_status,
                                   contact_info=contact_info)
     
     # Используем group_username из конфига для отправки админам
@@ -627,6 +658,13 @@ def send_to_moderation(post_id: int):
             bot.send_photo(
                 admin_chat,
                 post["photo_file_id"],
+                caption=moderation_text,
+                reply_markup=get_moderation_keyboard(post_id)
+            )
+        elif post['has_video']:
+            bot.send_video(
+                admin_chat,
+                post["video_file_id"],
                 caption=moderation_text,
                 reply_markup=get_moderation_keyboard(post_id)
             )
@@ -641,7 +679,7 @@ def send_to_moderation(post_id: int):
 
 def edit_moderation_message(message: types.Message, post: dict, status: str, admin_username: str):
     username = post["username"] if post["username"] else str(post["user_id"])
-    photo_status = messages.get('status.photo_yes') if post['has_photo'] else messages.get('status.photo_no')
+    media_status = messages.get('status.media_yes') if post['has_photo'] or post['has_video'] else messages.get('status.media_no')
     contact_info = messages.get('status.contact_anonymous') if post["is_anonymous"] else f"@{username}"
     
     if status == "approved":
@@ -649,7 +687,7 @@ def edit_moderation_message(message: types.Message, post: dict, status: str, adm
                                author=f"@{username} ({post['user_id']})",
                                post_id=post['id'],
                                post_text=post['text_content'],
-                               photo_status=photo_status,
+                               media_status=media_status,
                                contact_info=contact_info,
                                admin_username=admin_username)
     else:  # rejected
@@ -657,12 +695,12 @@ def edit_moderation_message(message: types.Message, post: dict, status: str, adm
                                author=f"@{username} ({post['user_id']})",
                                post_id=post['id'],
                                post_text=post['text_content'],
-                               photo_status=photo_status,
+                               media_status=media_status,
                                contact_info=contact_info,
                                admin_username=admin_username)
     
     try:
-        if message.photo:
+        if message.photo or message.video:
             bot.edit_message_caption(
                 new_text,
                 message.chat.id,
@@ -675,7 +713,7 @@ def edit_moderation_message(message: types.Message, post: dict, status: str, adm
                 message.message_id,
             )
     except:
-        pass
+        bot.send_message
 
 def publish_to_channel(post: dict):
     channel_chat_id = f"@{settings.channel_username}"
@@ -689,6 +727,8 @@ def publish_to_channel(post: dict):
     try:
         if post["has_photo"]:
             bot.send_photo(channel_chat_id, post["photo_file_id"], caption=publish_text, parse_mode="HTML")
+        elif post["has_video"]:
+            bot.send_video(channel_chat_id, post["video_file_id"], caption=publish_text, parse_mode="HTML")
         else:
             bot.send_message(channel_chat_id, publish_text, parse_mode="HTML", disable_web_page_preview=True)
     except Exception as e:
