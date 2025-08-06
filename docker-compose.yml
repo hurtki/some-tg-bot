@@ -1,6 +1,7 @@
 
 services:
   bot:
+    container_name: bot_python
     build: .
     restart: always
     env_file:
