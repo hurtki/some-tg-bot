@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     bot_token: str
     
 
-    channel_username: str
+    channel_usernames: list[str]
     bot_username: str
     group_username: str 
     admin_ids: list[int]

@@ -6,11 +6,7 @@ from .logger import logger
 from .config import settings, messages
 from .database import Database
 
-logger.info("bot started succsecfully!")
-
-
-
-
+logger.info("bot started")
 
 # Инициализация
 bot = telebot.TeleBot(settings.bot_token)
@@ -21,17 +17,24 @@ user_states: Dict[int, str] = {}
 user_data: Dict[int, dict] = {}
 
 # Проверка подписки на канал
-def check_subscription(user_id: int) -> bool:
-    try:
-        member = bot.get_chat_member(f"@{settings.channel_username}", user_id)
-        return member.status in ['member', 'administrator', 'creator']
-    except:
-        return False
+def check_subscriptions(user_id: int) -> list[str]:
+    need_to_subscribe_channels = []
+    for channel in settings.channel_usernames:
+        try:
+            member = bot.get_chat_member(f"@{channel}", user_id)
+            if not member.status in ['member', 'administrator', 'creator']:
+                need_to_subscribe_channels.append(channel)
+        except:
+            need_to_subscribe_channels.append(channel)
+        logger
+    return need_to_subscribe_channels
 # Клавиатуры
-def get_subscription_keyboard():
+def get_subscription_keyboard(channel_usernames: list[str]):
     markup = types.InlineKeyboardMarkup(row_width=1)
+    for username in channel_usernames:
+        markup.add(types.InlineKeyboardButton(messages.get('buttons.subscribe'), url=f"https://t.me/{username}"))
     markup.add(types.InlineKeyboardButton(messages.get('buttons.check_subscription'), callback_data="check_subscription"))
-    markup.add(types.InlineKeyboardButton(messages.get('buttons.subscribe'), url=f"https://t.me/{settings.channel_username}"))
+    
     return markup
 
 def get_main_keyboard():
@@ -96,11 +99,12 @@ def start_handler(message: types.Message):
         return
     
     # Затем проверяем подписку
-    if not check_subscription(user_id):
+    not_subscribed_channels = check_subscriptions(user_id)
+    if not not_subscribed_channels == []:
         bot.send_message(
         message.chat.id,
         messages.get('subscription.check_required'),
-        reply_markup=get_subscription_keyboard(),
+        reply_markup=get_subscription_keyboard(not_subscribed_channels),
         parse_mode="HTML",
         )
         return
@@ -387,8 +391,8 @@ def restart_post_handler(message: types.Message):
 @bot.message_handler(func=lambda message: message.text == messages.get('buttons.check_subscription'))
 def check_subscription_handler(message: types.Message):
     user_id = message.from_user.id
-    
-    if check_subscription(user_id):
+    not_subscribed_channels = check_subscriptions(user_id)
+    if not_subscribed_channels == []:
         bot.send_message(
             message.chat.id,
             messages.get('welcome.greeting'),
@@ -398,7 +402,7 @@ def check_subscription_handler(message: types.Message):
         bot.send_message(
             message.chat.id,
             messages.get('subscription.not_subscribed'),
-            reply_markup=get_subscription_keyboard()
+            reply_markup=get_subscription_keyboard(not_subscribed_channels)
         )    
     
 @bot.callback_query_handler(func=lambda call: call.data.startswith('check_'))
@@ -407,19 +411,18 @@ def check_subscription_handler(call):
     chat_id = call.message.chat.id
     message = call.message
     
-    if check_subscription(user_id):
-        bot.delete_message(chat_id, message.message_id)
+    not_subscribed_channels = check_subscriptions(user_id)
+    if not_subscribed_channels == []:
         bot.send_message(
-            chat_id,
+            message.chat.id,
             messages.get('welcome.greeting'),
             reply_markup=get_main_keyboard()
         )
     else:
-        bot.delete_message(chat_id, message.message_id)
         bot.send_message(
-            chat_id,
+            message.chat.id,
             messages.get('subscription.not_subscribed'),
-            reply_markup=get_subscription_keyboard()
+            reply_markup=get_subscription_keyboard(not_subscribed_channels)
         )    
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_'))
