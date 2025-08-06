@@ -12,9 +12,11 @@ class Settings(BaseSettings):
     
 
     channel_usernames: list[str]
+    channel_username_publish: str
     bot_username: str
     group_username: str 
     admin_ids: list[int]
+    
     
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(__file__), ".env"),

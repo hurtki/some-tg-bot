@@ -731,7 +731,7 @@ def edit_moderation_message(message: types.Message, post: dict, status: str, adm
         bot.send_message
 
 def publish_to_channel(post: dict):
-    channel_chat_id = f"@{settings.channel_username}"
+    channel_chat_id = f"@{settings.channel_username_publish}"
     username = post["username"] if not post["is_anonymous"] else None
     contact_info = f"@{username}" if username else messages.get('status.contact_anonymous')
     
